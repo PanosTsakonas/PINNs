@@ -188,13 +188,13 @@ fig2.tight_layout()  # to prevent the labels from overlapping
 L=[sum(z) for z in zip(data_loss,physics_loss)]
 
 plt.figure()
-plt.plot(K_est,L)
+plt.plot(np.log10(K_est),np.log10(L))
 plt.title("Loss function vs Spring estimates")
 plt.xlabel("Spring (Nm/rad)")
 plt.ylabel("Loss")
 
 plt.figure()
-plt.plot(B_est,L)
+plt.plot(np.log10(B_est),np.log10(L))
 plt.title("Loss function vs Damper estimates")
 plt.xlabel("Damper (Nms/rad)")
 plt.ylabel("Loss")
