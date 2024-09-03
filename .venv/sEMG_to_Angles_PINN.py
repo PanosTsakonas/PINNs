@@ -6,7 +6,7 @@ import torch.nn as nn
 import pandas as pd
 from scipy.interpolate import CubicSpline as CS
 from scipy.integrate import solve_ivp
-
+from os import getlogin
 
 # Define the neural network architecture
 class PINN(nn.Module):
@@ -25,9 +25,10 @@ class PINN(nn.Module):
     def forward(self, t):
         return self.hidden_layer(t)
 
+logIn=getlogin()
 # Load data
 I = pd.read_excel(
-    "C:/Users/panos/OneDrive - University of Warwick/PhD/Hand Trials/Results/Cylindrical Grasp/P1/sEMG_par_1_Cylindrical2.xlsx")
+    "C:/Users/"+logIn+"/OneDrive - University of Warwick/PhD/Hand Trials/Results/Cylindrical Grasp/P1/sEMG_par_1_Cylindrical2.xlsx")
 fs=1000
 EDC = I['EDC'].to_numpy()
 FDS = I['FDS'].to_numpy()
@@ -67,7 +68,7 @@ aFDS = solution.y[0]
 plt.figure()
 plt.plot(t,aEDC)
 plt.plot(t,EDCf(t))
-plt.legend(["Activtion","Conditioned Signal"])
+plt.legend(["Activation","Conditioned Signal"])
 plt.title("sEMG activation of EDC")
 plt.xlabel("Time (s)")
 plt.ylabel("Normalised")
@@ -76,7 +77,7 @@ plt.ylabel("Normalised")
 plt.figure()
 plt.plot(t,aFDP)
 plt.plot(t,FDPf(t))
-plt.legend(["Activtion","Conditioned Signal"])
+plt.legend(["Activation","Conditioned Signal"])
 plt.title("sEMG activation of FDP")
 plt.xlabel("Time (s)")
 plt.ylabel("Normalised")
@@ -84,7 +85,7 @@ plt.ylabel("Normalised")
 plt.figure()
 plt.plot(t,aFDS)
 plt.plot(t,FDSf(t))
-plt.legend(["Activtion","Conditioned Signal"])
+plt.legend(["Activation","Conditioned Signal"])
 plt.title("sEMG activation of FDS")
 plt.xlabel("Time (s)")
 plt.ylabel("Normalised")
