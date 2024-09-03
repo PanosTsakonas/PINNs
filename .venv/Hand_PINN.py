@@ -1,11 +1,11 @@
-import numpy as np
-import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
+import numpy as np
+import matplotlib.pyplot as plt
 import pandas as pd
 from scipy.interpolate import CubicSpline as CS
 from scipy.integrate import solve_ivp
-
+import os
 
 # Define the neural network architecture
 class PINN(nn.Module):
@@ -25,9 +25,10 @@ m = torch.tensor([[6.67495e-06]])
 b = torch.tensor([[0.3782396]])
 k = torch.tensor([[9.855922348]])
 
+logIn=os.getlogin()
 # Load data
 I = pd.read_excel(
-    "C:/Users/panos/OneDrive - University of Warwick/PhD/Hand Trials/Results/Cylindrical Grasp/P1/data_digit_2par_1_Cylindical_ _trial_2Thelen.xlsx")
+    "C:/Users/"+logIn+"/OneDrive - University of Warwick/PhD/Hand Trials/Results/Cylindrical Grasp/P1/data_digit_2par_1_Cylindical_ _trial_2Thelen.xlsx")
 time = I['time'].to_numpy()
 MEDC = I['EDC_PIP'].to_numpy()
 MFDS = I['FDS_PIP'].to_numpy()
