@@ -1,5 +1,6 @@
 from cProfile import label
-from os import listdir, getlogin
+from nt import getlogin
+from os import listdir,getlogin
 import numpy as np
 import matplotlib.pyplot as plt
 import torch
@@ -12,11 +13,10 @@ from scipy.integrate import solve_ivp
 m = torch.tensor([[6.67495e-06]])
 b = torch.tensor([[0.3782396]])
 k = torch.tensor([[9.855922348]])
-logIn=getlogin()
 
 # Load data
 I = pd.read_excel(
-    "C:/Users/"+logIn+"/OneDrive - University of Warwick/PhD/Hand Trials/Results/Cylindrical Grasp/P1/data_digit_2par_1_Cylindical_ _trial_2Thelen.xlsx")
+    "C:/Users/"+getlogin()+"/OneDrive - University of Warwick/PhD/Hand Trials/Results/Cylindrical Grasp/P1/data_digit_2par_1_Cylindical_ _trial_2Thelen.xlsx")
 time = I['time'].to_numpy()
 MEDC = I['EDC_PIP'].to_numpy()
 MFDS = I['FDS_PIP'].to_numpy()
@@ -162,7 +162,7 @@ for i in range(num_epochs):
     plt.pause(0.05)
 
 plt.ioff()
-P="C:/Users/"+logIn+"/OneDrive - University of Warwick/PINNs/Parameter Estimation Pytorch/"
+P="C:/Users/"+getlogin()+"/OneDrive - University of Warwick/PINNs/Parameter Estimation Pytorch/"
 ff=int(listdir(P)[-1].split("take_")[-1].split(".png")[0])
 dir=P+"Parameter_Estimation_Par1_Digit2_Cyl02_take_"+str(ff+1)+".png"
 plt.savefig(dir)
@@ -173,13 +173,13 @@ fig2, ax1 = plt.subplots()
 color = 'tab:blue'
 ax1.set_xlabel('Log_10 (Epoch)')
 ax1.set_ylabel('Log_10 (Data Loss)', color=color)
-ax1.plot((np.linspace(0,num_epochs,len(data_loss))),np.log10(data_loss), color=color)
+ax1.plot(np.log10(np.linspace(0,num_epochs,len(data_loss))),np.log10(data_loss), color=color)
 ax1.tick_params(axis='y', labelcolor=color)
 
 ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
 color = 'tab:red'
 ax2.set_ylabel('Log_10 (Physics Loss)', color=color)  # we already handled the x-label with ax1
-ax2.plot((np.linspace(0,num_epochs,len(data_loss))),np.log10(physics_loss), color=color)
+ax2.plot(np.log10(np.linspace(0,num_epochs,len(data_loss))),np.log10(physics_loss), color=color)
 ax2.tick_params(axis='y', labelcolor=color)
 
 fig2.tight_layout()  # to prevent the labels from overlapping
@@ -188,13 +188,13 @@ fig2.tight_layout()  # to prevent the labels from overlapping
 L=[sum(z) for z in zip(data_loss,physics_loss)]
 
 plt.figure()
-plt.plot(np.log10(K_est),np.log10(L))
+plt.plot(K_est,L)
 plt.title("Loss function vs Spring estimates")
 plt.xlabel("Spring (Nm/rad)")
 plt.ylabel("Loss")
 
 plt.figure()
-plt.plot(np.log10(B_est),np.log10(L))
+plt.plot(B_est,L)
 plt.title("Loss function vs Damper estimates")
 plt.xlabel("Damper (Nms/rad)")
 plt.ylabel("Loss")
