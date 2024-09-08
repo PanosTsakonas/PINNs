@@ -1,5 +1,4 @@
 from cProfile import label
-from nt import getlogin
 from os import listdir,getlogin
 import numpy as np
 import matplotlib.pyplot as plt
@@ -171,15 +170,15 @@ plt.savefig(dir)
 fig2, ax1 = plt.subplots()
 
 color = 'tab:blue'
-ax1.set_xlabel('Log_10 (Epoch)')
+ax1.set_xlabel('Epoch')
 ax1.set_ylabel('Log_10 (Data Loss)', color=color)
-ax1.plot(np.log10(np.linspace(0,num_epochs,len(data_loss))),np.log10(data_loss), color=color)
+ax1.plot((np.linspace(0,num_epochs,len(data_loss))),np.log10(data_loss), color=color)
 ax1.tick_params(axis='y', labelcolor=color)
 
 ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
 color = 'tab:red'
 ax2.set_ylabel('Log_10 (Physics Loss)', color=color)  # we already handled the x-label with ax1
-ax2.plot(np.log10(np.linspace(0,num_epochs,len(data_loss))),np.log10(physics_loss), color=color)
+ax2.plot((np.linspace(0,num_epochs,len(data_loss))),np.log10(physics_loss), color=color)
 ax2.tick_params(axis='y', labelcolor=color)
 
 fig2.tight_layout()  # to prevent the labels from overlapping
