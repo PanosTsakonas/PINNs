@@ -91,7 +91,7 @@ num_epochs=25000
 optimiser=torch.optim.Adam(list(model2.parameters())+[b_est]+[k_est],lr=learning_rate)
 
 
-def msd(t, y):
+def msd(t, y,b,k):
     x, v = y
     moment_value = Moment(np.array([t]))  # Ensure t is an array for cubic spline interpolation
     # Convert moment_value to a float, as it might be a numpy array
@@ -110,7 +110,7 @@ t_span = (time[0], time[-1])
 t_eval = np.linspace(t_span[0], t_span[1], 500)
 
 # Solve the ODE
-solution = solve_ivp(msd, t_span, y0, t_eval=t_eval, method='RK45')
+solution = solve_ivp(lambda t,y:msd(t,y,b,k), t_span, y0, t_eval=t_eval, method='RK45')
 
 # Extract the results
 t11 = solution.t
@@ -147,7 +147,7 @@ for i in range(num_epochs):
     physics_loss.append(p_loss.item())
     K_est.append((torch.tensor(10) * torch.sigmoid(k_est)).item())
     B_est.append((torch.tensor(2) * torch.sigmoid(b_est)).item())
-    loss= RMSE()+0.3*physics(t_train,torch.sigmoid(b_est)*2,torch.sigmoid(k_est)*10)+0.8*init_cond()
+    loss= 0.333*RMSE()+0.333*physics(t_train,torch.sigmoid(b_est)*2,torch.sigmoid(k_est)*10)+0.333*init_cond()
 
     loss.backward()
     optimiser.step()
@@ -161,13 +161,28 @@ for i in range(num_epochs):
     plt.pause(0.05)
 
 plt.ioff()
+
+# Solve the ODE
+solution1 = solve_ivp(lambda t,y:msd(t,y,2*torch.sigmoid(b_est).item(),10*torch.sigmoid(k_est).item()), t_span, y0, t_eval=t_eval, method='RK45')
+
+# Extract the results
+t11_s = solution1.t
+u_exact1 = solution1.y[0]
 P="C:/Users/"+getlogin()+"/OneDrive - University of Warwick/PINNs/Parameter Estimation Pytorch/"
 ff=int(listdir(P)[-1].split("take_")[-1].split(".png")[0])
 dir=P+"Parameter_Estimation_Par1_Digit2_Cyl02_take_"+str(ff+1)+".png"
 plt.savefig(dir)
 
+plt.figure()
+plt.plot(t11_s,u_exact1,label="IBK solution with New Params")
+model2.eval()
+with torch.no_grad():
+    pred2=model2(torch.tensor(t11_s, dtype=torch.float32).view(-1,1))
+plt.plot(t11_s,pred2.detach().cpu().numpy(),label="NN")
+plt.title(f"RMSE: {np.mean((u_exact1-pred2.detach().cpu().numpy())**2):.3f}")
+
 # Plot the data loss and physics loss on the same figure with two y-axes
-fig2, ax1 = plt.subplots()
+fig3, ax1 = plt.subplots()
 
 color = 'tab:blue'
 ax1.set_xlabel('Epoch')
@@ -181,7 +196,7 @@ ax2.set_ylabel('Log_10 (Physics Loss)', color=color)  # we already handled the x
 ax2.plot((np.linspace(0,num_epochs,len(data_loss))),np.log10(physics_loss), color=color)
 ax2.tick_params(axis='y', labelcolor=color)
 
-fig2.tight_layout()  # to prevent the labels from overlapping
+fig3.tight_layout()  # to prevent the labels from overlapping
 
 
 L=[sum(z) for z in zip(data_loss,physics_loss)]
