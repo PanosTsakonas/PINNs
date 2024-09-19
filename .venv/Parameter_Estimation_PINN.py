@@ -174,13 +174,13 @@ dir=P+"Parameter_Estimation_Par1_Digit2_Cyl02_take_"+str(ff+1)+".png"
 plt.savefig(dir)
 
 plt.figure()
-plt.plot(t11_s,u_exact1,label="IBK solution with New Params")
+plt.plot(t11_s,u_exact1)
 model2.eval()
 with torch.no_grad():
     pred2=model2(torch.tensor(t11_s, dtype=torch.float32).view(-1,1))
-plt.plot(t11_s,pred2.detach().cpu().numpy(),label="NN")
+plt.plot(t11_s,pred2.detach().cpu().numpy())
 plt.title(f"RMSE: {np.mean((u_exact1-pred2.detach().cpu().numpy())**2):.3f}")
-
+plt.legend(["IBK with new Params","NN"])
 # Plot the data loss and physics loss on the same figure with two y-axes
 fig3, ax1 = plt.subplots()
 
