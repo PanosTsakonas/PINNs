@@ -9,18 +9,14 @@ from scipy.interpolate import CubicSpline as CS
 from scipy.integrate import solve_ivp
 from scipy.signal import butter, filtfilt
 from scipy.signal import find_peaks
-
+from scipy.optimize import minimize
 
 m = 3.6395E-05
-b1 = 0.0013
-k1 = 0.0482
 fs=150
 # Load data
 I = pd.read_excel("C:/Users/"+getlogin()+"/OneDrive - University of Warwick/PhD/Hand Trials/Data for MATLAB/Data P1/Index/MCP_Spring.xlsx")
 
 th1 = (I['MCP']).to_numpy()
-
-
 
 [b,a]=butter(4,15/(fs/2),'low')
 
@@ -31,6 +27,16 @@ time=np.zeros([len(th1f[Ind[5]+55:Ind[5]+55+60])])
 
 for i in range (1,len(th1f[Ind[5]+55:Ind[5]+55+60])):
     time[i]=time[i-1]+1/fs
+
+thN=th1f[Ind[5]+55:Ind[5]+55+60]
+# Initial conditions
+x0 = thN[0]
+v0 = 0.0
+y0 = [x0, v0]
+
+# Time span for the solution
+t_span=(time[0],time[-1])
+
 
 # Define the neural network architecture
 class PINN2(nn.Module):
@@ -50,7 +56,7 @@ class PINN2(nn.Module):
 
 
 model2=PINN2()
-thN=th1f[Ind[5]+55:Ind[5]+55+60]
+
 
 def RMSE():
     t = torch.linspace(time[0], time[-1], len(time)).view(-1, 1)
@@ -78,8 +84,8 @@ def init_cond():
     v0_loss = torch.mean((torch.squeeze(th0_t_pred)-v0_true) ** 2)
     return th0_loss+v0_loss
 
-b_est = torch.nn.Parameter(torch.tensor(0.001, requires_grad=True))  # Initial guess for damper
-k_est = torch.nn.Parameter(torch.tensor(0.001, requires_grad=True))  # Initial guess for spring constant
+b_est = torch.nn.Parameter(torch.tensor(0.0002, requires_grad=True))  # Initial guess for damper
+k_est = torch.nn.Parameter(torch.tensor(0.0001, requires_grad=True))  # Initial guess for spring constant
 
 # Training parameters
 learning_rate = 1e-3
@@ -93,15 +99,26 @@ def msd(t, y,b,k):
     dydt[1] = ( - (b) * y[1] - (k) * (y[0] - thN[-1])) / (m)
     return dydt
 
+def simulate_system(b, k, tspan,time):
+    y0 = [thN[0], 0.0]  # initial displacement and velocity
+    sol = solve_ivp(lambda t,y: msd(t,y,b,k), tspan,y0,t_eval=time, method='RK45')
+    return sol.y[0]  # returning displacement
 
-# Initial conditions
-x0 = thN[0]
-v0 = 0.0
-y0 = [x0, v0]
+def obj(params,data,tspan,time):
+    b,k=params
+    th=simulate_system(b,k,tspan,time)
+    return np.sum((data-th)**2)
 
-# Time span for the solution
-t_span=(time[0],time[-1])
+# Initial guess for parameters [damping coefficient, spring constant]
+initial_guess = [0.5, 1.0]  # Adjust these based on expected values
 
+# Bounds on the parameters (e.g., both should be positive)
+bounds = [(0, None), (0, None)]  # c, k >= 0
+# Minimize the objective function
+result = minimize(obj, initial_guess, args=(thN, t_span, time), bounds=bounds)
+
+# Optimal parameters
+b1, k1 = result.x
 
 # Solve the ODE
 solution = solve_ivp(lambda t,y:msd(t,y,b1,k1), t_span, y0, method='RK45')
