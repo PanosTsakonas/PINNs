@@ -199,8 +199,8 @@ x = np.arange(len(labels))  # the label locations
 width = 0.35  # the width of the bars
 
 fig, ax = plt.subplots()
-bars1 = ax.bar(x - width/2, determined_values, width, label='Determined', color='blue')
-bars2 = ax.bar(x + width/2, actual_values, width, label='Actual', color='orange')
+bars1 = ax.bar(x - width/2, determined_values, width, label='PINN', color='blue')
+bars2 = ax.bar(x + width/2, actual_values, width, label='Minimisation', color='orange')
 
 # Add some text for labels, title and custom x-axis tick labels, etc.
 ax.set_ylabel('Values')
@@ -213,7 +213,7 @@ ax.legend()
 def add_value_annotations(bars):
     for bar in bars:
         height = bar.get_height()
-        ax.annotate(f'{height:.2f}',
+        ax.annotate(f'{height:.2e}',
                     xy=(bar.get_x() + bar.get_width() / 2, height),
                     xytext=(0, 3),  # 3 points vertical offset
                     textcoords="offset points",
