@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
 import pandas as pd
-from scipy.interpolate import CubicSpline as CS
 from scipy.integrate import solve_ivp
 from scipy.signal import butter, filtfilt
 from scipy.signal import find_peaks
@@ -183,27 +182,44 @@ u_exact1 = solution1.y[0]
 
 plt.figure()
 plt.plot(t11_s,u_exact1)
+
 model2.eval()
 with torch.no_grad():
     pred2=model2(torch.tensor(t11_s, dtype=torch.float32).view(-1,1))
 plt.plot(t11_s,pred2.detach().cpu().numpy())
 plt.title(f"RMSE: {np.mean((u_exact1-pred2.detach().cpu().numpy())**2):.3f}")
 plt.legend(["IBK solution with New Params","NN"])
-# Plot the data loss and physics loss on the same figure with two y-axes
-fig3, ax1 = plt.subplots()
 
-color = 'tab:blue'
-ax1.set_xlabel('Epoch')
-ax1.set_ylabel('Log_10 (Data Loss)', color=color)
-ax1.plot((np.linspace(0,num_epochs,len(data_loss))),np.log10(data_loss), color=color)
-ax1.tick_params(axis='y', labelcolor=color)
+# Plot the bar chart for comparison
+labels = ['Damping Coefficient (Nms/rad)', 'Spring Constant (Nm/rad)']
+determined_values = [torch.sigmoid(b_est).item(), torch.sigmoid(k_est).item()]
+actual_values = [b1, k1]
 
-ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
-color = 'tab:red'
-ax2.set_ylabel('Log_10 (Physics Loss)', color=color)  # we already handled the x-label with ax1
-ax2.plot((np.linspace(0,num_epochs,len(data_loss))),np.log10(physics_loss), color=color)
-ax2.tick_params(axis='y', labelcolor=color)
+x = np.arange(len(labels))  # the label locations
+width = 0.35  # the width of the bars
 
-fig3.tight_layout()  # to prevent the labels from overlapping
+fig, ax = plt.subplots()
+bars1 = ax.bar(x - width/2, determined_values, width, label='Determined', color='blue')
+bars2 = ax.bar(x + width/2, actual_values, width, label='Actual', color='orange')
+
+# Add some text for labels, title and custom x-axis tick labels, etc.
+ax.set_ylabel('Values')
+ax.set_title('Comparison of Determined and Actual Parameters')
+ax.set_xticks(x)
+ax.set_xticklabels(labels)
+ax.legend()
+
+# Add value annotations on bars
+def add_value_annotations(bars):
+    for bar in bars:
+        height = bar.get_height()
+        ax.annotate(f'{height:.2f}',
+                    xy=(bar.get_x() + bar.get_width() / 2, height),
+                    xytext=(0, 3),  # 3 points vertical offset
+                    textcoords="offset points",
+                    ha='center', va='bottom')
+
+add_value_annotations(bars1)
+add_value_annotations(bars2)
 
 plt.show()
