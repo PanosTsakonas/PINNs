@@ -181,13 +181,13 @@ u_exact1 = solution1.y[0]
 
 
 plt.figure()
-plt.plot(t11_s,u_exact1)
+plt.plot(t11_s,u_exact1*180/np.pi)
 
 model2.eval()
 with torch.no_grad():
     pred2=model2(torch.tensor(t11_s, dtype=torch.float32).view(-1,1))
-plt.plot(t11_s,pred2.detach().cpu().numpy())
-plt.title(f"RMSE: {np.mean((u_exact1-pred2.detach().cpu().numpy())**2):.3f}")
+plt.plot(t11_s,pred2.detach().cpu().numpy()*180/np.pi)
+plt.title(f"RMSE: {np.mean((u_exact1-pred2.detach().cpu().numpy())**2)*180/np.pi:.3f} (deg)")
 plt.legend(["IBK solution with New Params","NN"])
 
 # Plot the bar chart for comparison
