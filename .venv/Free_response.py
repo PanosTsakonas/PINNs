@@ -187,8 +187,10 @@ model2.eval()
 with torch.no_grad():
     pred2=model2(torch.tensor(t11_s, dtype=torch.float32).view(-1,1))
 plt.plot(t11_s,pred2.detach().cpu().numpy()*180/np.pi)
+plt.plot(t11,u_exact*180/np.pi)
+plt.scatter(time,thN*180/np.pi)
 plt.title(f"RMSE: {np.mean((u_exact1-pred2.detach().cpu().numpy())**2)*180/np.pi:.3f} (deg)")
-plt.legend(["IBK solution with New Params","NN"])
+plt.legend(["IBK solution with New Params","NN"," IBK with parameters from minimisation","Gait Lab data"])
 
 # Plot the bar chart for comparison
 labels = ['Damping Coefficient (Nms/rad)', 'Spring Constant (Nm/rad)']
