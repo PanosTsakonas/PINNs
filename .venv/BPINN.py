@@ -128,7 +128,7 @@ ax.legend()
 def train_bayesian_pinn(pinn, optimizer, t_train, m, epochs=800):
     kl_divergence = 0
     for epoch in range(epochs):
-        pinn.train()
+
         # Physics loss
         physics_loss = pinn.physics_loss(t_train, m)
 
@@ -158,8 +158,7 @@ if __name__ == "__main__":
     # Generate synthetic training data (replace with real data)
     t_train = torch.linspace(time[0], time[-1], len(time)).reshape(-1, 1)
 
-
-
+    pinn.train()
     # Train the Bayesian PINN
     train_bayesian_pinn(pinn, optimizer, t_train, Mo)
 

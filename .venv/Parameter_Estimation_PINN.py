@@ -136,9 +136,9 @@ K_est=[]
 B_est=[]
 # Initialize parameter estimates as learnable parameters
 
-
+model2.train()
 for i in range(num_epochs):
-    model2.train()
+
 
     optimiser.zero_grad()
     # Calculate individual losses

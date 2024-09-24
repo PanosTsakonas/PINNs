@@ -123,9 +123,10 @@ ax.plot(time,th1,label='Gait Lab', color='red')
 line, = ax.plot(t_test.numpy(), np.zeros_like(t_test.numpy()), label='NN Prediction', color='blue')
 ax.legend()
 
+model.train()
 # Training loop
 for epoch in range(num_epochs):
-    model.train()
+
     optimizer.zero_grad()
     # Generate time samples for training
 
