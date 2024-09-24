@@ -125,6 +125,7 @@ ax.legend()
 
 # Training loop
 for epoch in range(num_epochs):
+    model.train()
     optimizer.zero_grad()
     # Generate time samples for training
 

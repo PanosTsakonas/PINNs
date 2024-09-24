@@ -148,6 +148,8 @@ B_est=[]
 
 
 for i in range(num_epochs):
+    model2.train()
+
     optimiser.zero_grad()
     # Calculate individual losses
     p_loss = physics(t_train,torch.sigmoid(b_est)*1,torch.sigmoid(k_est)*1)

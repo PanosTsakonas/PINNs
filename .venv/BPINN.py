@@ -128,6 +128,7 @@ ax.legend()
 def train_bayesian_pinn(pinn, optimizer, t_train, m, epochs=800):
     kl_divergence = 0
     for epoch in range(epochs):
+        pinn.train()
         # Physics loss
         physics_loss = pinn.physics_loss(t_train, m)
 
