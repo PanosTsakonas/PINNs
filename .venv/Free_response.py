@@ -230,8 +230,6 @@ def add_value_annotations(bars):
 add_value_annotations(bars1)
 add_value_annotations(bars2)
 
-P="C:/Users/"+getlogin()+"/OneDrive - University of Warwick/PINNs/Free_response/"
-ff=int(listdir(P)[0].split("Bar_Chart_PINN_Minimisation_")[-1].split(".png")[0])
 dir=P+"Bar_Chart_PINN_Minimisation_"+str(ff+1)+".png"
 plt.savefig(dir)
 
