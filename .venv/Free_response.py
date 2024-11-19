@@ -212,7 +212,7 @@ bars2 = ax.bar(x + width/2, actual_values, width, label='Minimisation', color='o
 
 # Add some text for labels, title and custom x-axis tick labels, etc.
 ax.set_ylabel('Values')
-ax.set_title('Comparison of Determined and Actual Parameters')
+ax.set_title(f'Comparison of Determined and Actual Parameters Epochs: {num_epochs}')
 ax.set_xticks(x)
 ax.set_xticklabels(labels)
 ax.legend()
