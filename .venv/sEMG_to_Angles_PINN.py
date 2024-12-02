@@ -9,194 +9,129 @@ from torch.utils.data import DataLoader, Dataset
 from torch.nn.utils.rnn import pad_sequence
 
 
-# Define the LSTM-based neural network architecture
+import torch
+import torch.nn as nn
+from torch.utils.data import Dataset, DataLoader
+import numpy as np
+import scipy.signal
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# 1. Define the LSTM-based neural network
+fsEMG=1000
+fs=125
 class EMGLSTM(nn.Module):
-    def __init__(self, input_size, hidden_size, output_size):
+    def __init__(self, input_size, hidden_size, output_size, num_layers=20):
         super(EMGLSTM, self).__init__()
-        self.lstm = nn.LSTM(input_size, hidden_size, batch_first=True)
+        self.lstm = nn.LSTM(input_size, hidden_size, num_layers=num_layers, batch_first=True)
         self.fc = nn.Linear(hidden_size, output_size)
 
     def forward(self, x):
-        lstm_out, _ = self.lstm(x)  # LSTM processes variable-length sequences
-        output = self.fc(lstm_out[:, -1, :])  # Use the last LSTM output
+        lstm_out, _ = self.lstm(x)
+        output = self.fc(lstm_out[:, -1, :])  # Use the last time step's output
         return output
 
-# Sample Dataset Class
+# 2. Dataset Class
 class EMGDataset(Dataset):
-    def __init__(self, input_data, target_data):
-        self.inputs = input_data
-        self.targets = target_data
+    def __init__(self, inputs, targets, downsample_factor=fsEMG/fs):
+        self.inputs = inputs
+        self.targets = targets
+        self.downsample_factor = downsample_factor
 
     def __len__(self):
-        return len(self.inputs)
+        return len(self.targets)
 
     def __getitem__(self, idx):
-        return self.inputs[idx], self.targets[idx]
+        input_segment = self.inputs[idx * self.downsample_factor:(idx + 1) * self.downsample_factor]
+        target = self.targets[idx]
+        return input_segment, target
 
+# 3. Signal Filtering Functions
+def filter_signal(signal, fs, cutoff):
+    b, a = scipy.signal.butter(4, cutoff / (fs / 2), btype='low')
+    return scipy.signal.filtfilt(b, a, signal)
 
+def bandpass_filter(signal, fs, low, high):
+    b, a = scipy.signal.butter(4, [low / (fs / 2), high / (fs / 2)], btype='band')
+    filtered = scipy.signal.filtfilt(b, a, signal)
+    return np.abs(filtered) / np.max(filtered)
 
-logIn=getlogin()
+# 4. Load and Process Data
 
-# Load data
-I = pd.read_excel(
-    "C:/Users/"+logIn+"/OneDrive - University of Warwick/PhD/Hand Trials/Results/Cylindrical Grasp/P1/Cylindrical/Cylindrical_EMG_Marker_Data.xlsx")
+logIn = getlogin()  # Automatically get your username for file paths
 
-fs=1000
-EDC = I['EDC'].to_numpy()
-FDS = I['FDS'].to_numpy()
-FDP = I['FDP'].to_numpy()
-th  = I['MCP2'].dropna().to_numpy()
-index=np.zeros([len(th),3])
-middle=np.zeros([len(th),3])
-ring=np.zeros([len(th),3])
-little=np.zeros([len(th),3])
+data_path = f"C:/Users/{logIn}/OneDrive - University of Warwick/PhD/Hand Trials/Results/Cylindrical Grasp/P1/Cylindrical/Cylindrical_EMG_Marker_Data.xlsx"
+data = pd.read_excel(data_path)
 
-#Filter the angular data based on the results from the residual method
+# EMG data
+EDC = bandpass_filter(data['EDC'].to_numpy(), fsEMG, 10, 450)
+FDS = bandpass_filter(data['FDS'].to_numpy(), fsEMG, 10, 450)
+FDP = bandpass_filter(data['FDP'].to_numpy(), fsEMG, 10, 450)
 
-def filter(sig,fs,w):
-    b,a=scipy.signal.butter(4,w/(fs/2), btype='lowpass')
-    sigf=scipy.signal.filtfilt(b,a,sig)
-    return sigf
+# Angle data
+index = np.zeros([len(data['MCP2'].dropna()), 3])
+index[:, 0] = filter_signal(data['MCP2'].dropna().to_numpy(), 125, 8)
+index[:, 1] = filter_signal(data['PIP2'].dropna().to_numpy(), 125, 5)
+index[:, 2] = filter_signal(data['DIP2'].dropna().to_numpy(), 125, 4)
 
-index[:,0]=filter(th,125,8)
-index[:,1]= filter(I['PIP2'].dropna().to_numpy(),125,5)
-index[:,2]= filter(I['DIP2'].dropna().to_numpy(),125,4)
+targets = index  # Adjust as needed for all finger joints
 
-middle[:,0]= filter(I['MCP3'].dropna().to_numpy(),125,11)
-middle[:,1]= filter(I['PIP3'].dropna().to_numpy(),125,9)
-middle[:,2]= filter(I['DIP3'].dropna().to_numpy(),125,10)
+# Prepare inputs and targets
+inputs = np.stack([EDC, FDS, FDP], axis=-1)  # Shape: (num_samples, 3)
+inputs = torch.tensor(inputs, dtype=torch.float32)
+targets = torch.tensor(targets, dtype=torch.float32)
 
-ring[:,0]= filter(I['MCP4'].dropna().to_numpy(),125,14)
-ring[:,1]= filter(I['PIP4'].dropna().to_numpy(),125,8)
-ring[:,2]= filter(I['DIP4'].dropna().to_numpy(),125,15)
-
-little[:,0]= filter(I['MCP5'].dropna().to_numpy(),125,9)
-little[:,1]= filter(I['PIP5'].dropna().to_numpy(),125,5)
-little[:,2]= filter(I['DIP5'].dropna().to_numpy(),125,9)
-
-
-# Filter the sEMG signals
-def Filtering(sig,fs):
-    b,a=scipy.signal.butter(4,np.array([10, 450])/(fs/2),btype='bandpass')
-    sigf=np.abs(scipy.signal.filtfilt(b,a,sig))
-    Sig_Max=np.max(sigf)
-    sigf=sigf/Sig_Max
-    return sigf
-
-
-EDCf=Filtering(EDC,fs)
-FDPf=Filtering(FDP,fs)
-FDSf=Filtering(FDS,fs)
-
-# Create inputs with the correct shape
-#input = np.stack([EDCf, FDPf, FDSf], axis=1)  # Shape: (296, 3)
-#input = input.reshape(-1, 3 * len(EDCf))  # Shape: (num_samples, 3 * 296)
-
-# Create targets with the correct shape
-# Ensure that the targets are structured correctly (depends on your application)
-target = np.concatenate((index, middle, ring, little), axis=1)  # Shape: (37, 4, 3)
-
-
-#Get the input and target data in the pytorch format
-#inputs=torch.tensor(input,dtype=torch.float32)
-
-targets=torch.tensor(target,dtype=torch.float32)
-def EMG_2_Pytorch(EDC,FDS,FDP):
-        # Create padded input tensors
-        EDC_tensor = torch.tensor(EDC, dtype=torch.float32).unsqueeze(1)  # Add feature dimension
-        FDS_tensor = torch.tensor(FDS, dtype=torch.float32).unsqueeze(1)
-        FDP_tensor = torch.tensor(FDP, dtype=torch.float32).unsqueeze(1)
-
-        # Pad the EMG data
-        inputs = pad_sequence([EDC_tensor, FDS_tensor, FDP_tensor], batch_first=True)
-        return inputs
-
-inputs=EMG_2_Pytorch(EDCf,FDSf,FDPf)
-# Create a dataset and dataloader
-dataset = EMGDataset(inputs, targets)
+# Downsample data to match angular data rate
+downsample_factor = len(inputs) // len(targets)
+dataset = EMGDataset(inputs, targets, downsample_factor=downsample_factor)
 dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
 
+# 5. Initialize Model, Loss, and Optimizer
+input_size = 3  # Three sEMG channels
+hidden_size = 32  # Number of hidden units
+output_size = targets.shape[1]  # Number of joint angles
 
-#Initialise the NN model
-# Initialize the LSTM-based model
-input_size = 1  # Since each EMG channel is a single feature
-hidden_size = 64  # Number of hidden units in the LSTM
-output_size = 12  # 12 angles
 model = EMGLSTM(input_size, hidden_size, output_size)
-
-criterion = nn.MSELoss()  # Assuming a regression task for angles
-num_epochs=25000
+criterion = nn.MSELoss()
+#criterion = nn.SmoothL1Loss()
 optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+
+# 6. Train the Model
+num_epochs = 150000
+losses = []
+
 model.train()
+for epoch in range(num_epochs):
+    epoch_loss = 0.0
+    for inputs_batch, targets_batch in dataloader:
+        optimizer.zero_grad()  # Clear previous gradients
+        outputs = model(inputs_batch)  # Forward pass
+        loss = criterion(outputs, targets_batch)  # Compute loss
+        loss.backward()  # Backward pass
+        optimizer.step()  # Update weights
+        epoch_loss += loss.item()
+    losses.append(epoch_loss / len(dataloader))
+    print(f"Epoch {epoch + 1}/{num_epochs}, Loss: {epoch_loss / len(dataloader):.4f}")
 
-plt.ion()
-fig, ax= plt.subplots()
-line,= ax.plot([],[],label="Loss", color="black")
+# 7. Plot Training Loss
+plt.plot(range(1, num_epochs + 1), losses, label="Training Loss")
+plt.xlabel("Epoch")
+plt.ylabel("MSE Loss")
+plt.title("Training Loss over Epochs")
+plt.legend()
 
-# Set y-axis to display in scientific notation
-ax.get_yaxis().get_major_formatter().set_scientific(True)
-ax.get_yaxis().get_major_formatter().set_powerlimits((0, 0))
-
-L=[]
-xData=[]
-for i in range (num_epochs):
-    loss_C = 0.0
-    for inputs, targets in dataloader:
-       optimizer.zero_grad()  # Clear the gradients
-       outputs = model(inputs)  # Forward pass
-       loss = criterion(outputs, targets)  # Compute loss
-       loss.backward()  # Backward pass
-       optimizer.step()  # Update model parameters
-       loss_C+=(loss.item())
-    L.append(np.sum(loss_C))
-    xData.append(i)
-    line.set_ydata(np.log1p(L))
-    line.set_xdata(xData)
-    ax.relim()  # Recompute limits
-    ax.autoscale_view()  # Rescale axes to fit new data
-    ax.set_title("log(Loss) vs Epoch")
-    plt.pause(0.01)
-
-plt.ioff()
-plt.show()
-
-
-#Do a model evaluation
-# Load data
-I = pd.read_excel(
-    "C:/Users/"+logIn+"/OneDrive - University of Warwick/PhD/Hand Trials/Results/Cylindrical Grasp/P10/Cylindrical/Cylindrical03_EMG_Marker_Data.xlsx")
-
-EDC_N = Filtering(I['EDC'].to_numpy(),fs)
-FDS_N = Filtering(I['FDS'].to_numpy(),fs)
-FDP_N = Filtering(I['FDP'].to_numpy(),fs)
-th  = I['MCP2'].dropna().to_numpy()
-
-index=np.zeros([len(th),3])
-middle=np.zeros([len(th),3])
-ring=np.zeros([len(th),3])
-little=np.zeros([len(th),3])
-
-index[:,0]=filter(th,125,9)
-index[:,1]= filter(I['PIP2'].dropna().to_numpy(),125,10)
-index[:,2]= filter(I['DIP2'].dropna().to_numpy(),125,9)
-
-middle[:,0]= filter(I['MCP3'].dropna().to_numpy(),125,9)
-middle[:,1]= filter(I['PIP3'].dropna().to_numpy(),125,6)
-middle[:,2]= filter(I['DIP3'].dropna().to_numpy(),125,6)
-
-ring[:,0]= filter(I['MCP4'].dropna().to_numpy(),125,14)
-ring[:,1]= filter(I['PIP4'].dropna().to_numpy(),125,7)
-ring[:,2]= filter(I['DIP4'].dropna().to_numpy(),125,4)
-
-little[:,0]= filter(I['MCP5'].dropna().to_numpy(),125,7)
-little[:,1]= filter(I['PIP5'].dropna().to_numpy(),125,5)
-little[:,2]= filter(I['DIP5'].dropna().to_numpy(),125,4)
-
-inputs_N=EMG_2_Pytorch(EDC_N,FDS_N,FDP_N)
-
+# 8. Evaluate Model
 model.eval()
-
 with torch.no_grad():
-    pred=model(inputs_N)
+    # Ensure inputs have the correct shape
+    test_inputs = inputs[:32]  # Example test input
+    test_inputs = test_inputs.unsqueeze(1)  # Add a sequence length dimension (sequence_length = 1)
+    predictions = model(test_inputs)  # Forward pass
 
-target = np.concatenate((index, middle, ring, little), axis=1)  # Shape: (37, 4, 3)
+# Visualize Predictions
+plt.figure()
+plt.plot(predictions[:, 0].detach().numpy(), label="Predicted")
+plt.plot(targets[:len(predictions), 0].numpy(), label="Ground Truth")
+plt.legend()
+plt.title("Predicted vs Ground Truth")
+plt.show()
