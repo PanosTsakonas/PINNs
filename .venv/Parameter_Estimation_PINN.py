@@ -67,7 +67,7 @@ def physics(z,B,K):
     zt = torch.autograd.grad(th, z, torch.ones_like(th), create_graph=True)[0]
     ztt = torch.autograd.grad(zt, z, torch.ones_like(zt), create_graph=True)[0]
     f_t = torch.tensor(Moment(z.detach().cpu().numpy()), dtype=torch.float32)
-    res = m* ztt + B * zt + K * (th - torch.tensor([[th1[-1]]])) - f_t
+    res = m* ztt + B * zt + K * (th - torch.tensor(th1[-1])) - f_t
     return torch.mean(res**2)
 
 def init_cond():
@@ -83,7 +83,7 @@ def init_cond():
     return th0_loss+v0_loss
 
 b_est = torch.nn.Parameter(torch.tensor(0.01, requires_grad=True))  # Initial guess for damper
-k_est = torch.nn.Parameter(torch.tensor(1.0, requires_grad=True))  # Initial guess for spring constant
+k_est = torch.nn.Parameter(torch.tensor(0.1, requires_grad=True))  # Initial guess for spring constant
 
 # Training parameters
 learning_rate = 1e-3
@@ -119,7 +119,7 @@ u_exact = solution.y[0]
 # Data for plotting
 t_test = torch.linspace(time[0], time[-1], len(time)).reshape(-1, 1)
 
-t_train =  torch.linspace(time[0], time[-1], 500).reshape(-1, 1)
+t_train =  torch.linspace(time[0], time[-1], 150).reshape(-1, 1)
 
 plt.ion()
 fig, ax = plt.subplots()
@@ -127,6 +127,7 @@ ax.scatter(time, th1, label='Gait Lab Data', color='black')
 ax.plot(t11,u_exact,label='IBK optimisation', color='red')
 # Initialize a line for predictions
 line, = ax.plot(t_test.numpy(), np.zeros_like(t_test.numpy()), label='NN Prediction', color='blue')
+line2, = ax.plot(t_test.numpy(), np.zeros_like(t_test.numpy()), label='IBK from NN values', color='brown')
 ax.legend()
 # Initialize lists to store losses
 data_loss = []
@@ -157,13 +158,16 @@ for i in range(num_epochs):
     # Plot
     line.set_ydata(prd)
     ax.set_title(f'Epoch {i}, Loss: {loss.item():.4f}, B: {(torch.tensor(2)*torch.sigmoid(b_est)).item():.4e}, K:{(torch.tensor(10)*torch.sigmoid(k_est)).item():.4e}')
+    if i>1500:
+        solution = solve_ivp(lambda t, y: msd(t, y, 2*torch.tensor(b_est).item(), 10*torch.tensor(k_est).item()), t_span, y0, t_eval=time, method='Radau')
+        line2.set_ydata(solution.y[0])
     plt.draw()
     plt.pause(0.05)
 
 plt.ioff()
 
 # Solve the ODE
-solution1 = solve_ivp(lambda t,y:msd(t,y,2*torch.sigmoid(b_est).item(),10*torch.sigmoid(k_est).item()), t_span, y0, t_eval=t_eval, method='RK45')
+solution1 = solve_ivp(lambda t,y:msd(t,y,2*torch.sigmoid(b_est).item(),10*torch.sigmoid(k_est).item()), t_span, y0, t_eval=t_eval, method='LSODA')
 
 # Extract the results
 t11_s = solution1.t
