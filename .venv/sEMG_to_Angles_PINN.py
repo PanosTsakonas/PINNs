@@ -9,14 +9,6 @@ from torch.utils.data import DataLoader, Dataset
 from torch.nn.utils.rnn import pad_sequence
 
 
-import torch
-import torch.nn as nn
-from torch.utils.data import Dataset, DataLoader
-import numpy as np
-import scipy.signal
-import pandas as pd
-import matplotlib.pyplot as plt
-
 # 1. Define the LSTM-based neural network
 fsEMG=1000
 fs=125
