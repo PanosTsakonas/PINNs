@@ -203,3 +203,4 @@ with torch.no_grad():
     plt.tight_layout()
     plt.show()
 
+Data = f"C:/Users/{logIn}/OneDrive - University of Warwick/PhD/Hand Trials/Results/Cylindrical Grasp/P1/Cylindrical/EMG_Angles_Cyl3.xlsx"
