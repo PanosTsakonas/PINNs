@@ -117,7 +117,7 @@ criterion = nn.MSELoss()
 optimizer = optim.Adam(model.parameters(), lr=1e-3)
 
 # Training loop
-def train_model(model, criterion, optimizer, X_train, y_train, X_test, y_test, epochs=3500):
+def train_model(model, criterion, optimizer, X_train, y_train, X_test, y_test, epochs=4000):
     model.train()
     for epoch in range(epochs):
         optimizer.zero_grad()
@@ -137,8 +137,6 @@ def train_model(model, criterion, optimizer, X_train, y_train, X_test, y_test, e
 # Train the model
 train_model(model, criterion, optimizer, X_train, y_train, X_test, y_test)
 
-#Print the size of the predicted values
-print(model(X_train).size())
 
 #Plot the results
 
@@ -201,6 +199,80 @@ with torch.no_grad():
 
 
     plt.tight_layout()
-    plt.show()
+
 
 Data = f"C:/Users/{logIn}/OneDrive - University of Warwick/PhD/Hand Trials/Results/Cylindrical Grasp/P1/Cylindrical/EMG_Angles_Cyl3.xlsx"
+
+# Read the excel data
+df = pd.read_excel(Data)
+EDC_New=df['EDC']
+FDP_New=df['FDP']
+FDS_New=df['FDS']
+time_New=np.arange(len(EDC_New))/fsEMG
+
+
+df_c=df.drop(columns=['EDC','FDP','FDS']).dropna()
+tim = np.arange(len(df_c))/fs
+
+
+# Filter the sEMG data
+EDC_New_f = bandpass_filter(EDC_New, fsEMG, 10, 450)
+FDP_New_f = bandpass_filter(FDP_New, fsEMG, 10, 450)
+FDS_New_f = bandpass_filter(FDS_New, fsEMG, 10, 450)
+
+# Create a spline interpolation to be used in a ODE solver
+EDC_New_CS = CS(time_New, EDC_New_f, bc_type='natural')
+FDP_New_CS= CS(time_New, FDP_New_f, bc_type='natural')
+FDS_New_CS = CS(time_New, FDS_New_f, bc_type='natural')
+
+# Solve the ODE to get the muscle activation
+sol_EDC = solve_ivp(lambda t, a: muscle_activation(t, a, EDC_New_CS), [0, time_New[-1]], [0], t_eval=time_New)
+sol_FDP = solve_ivp(lambda t, a: muscle_activation(t, a, FDP_New_CS), [0, time_New[-1]], [0], t_eval=time_New)
+sol_FDS = solve_ivp(lambda t, a: muscle_activation(t, a, FDS_New_CS), [0, time_New[-1]], [0], t_eval=time_New)
+
+# Downsample the data so that it can be used in the model
+X_new = pd.DataFrame()
+X_new['EDC'] = sol_EDC.y[0][::int(fsEMG/fs)]
+X_new['FDP'] = sol_FDP.y[0][::int(fsEMG/fs)]
+X_new['FDS'] = sol_FDS.y[0][::int(fsEMG/fs)]
+
+# Standardize the features
+X_new = scaler_X.fit_transform(X_new)
+
+# Convert to PyTorch tensors
+X_new = torch.tensor(X_new, dtype=torch.float32)
+
+# Predict the joint angles
+model.eval()
+
+#Filter df_c data
+for i in df_c.columns:
+    df_c[i]=scipy.signal.filtfilt(b,a,df_c[i])
+
+with torch.no_grad():
+    y_pred_new = scaler_y.inverse_transform(model(X_new).numpy())
+    # Plot the results
+    fig, axs = plt.subplots(4, 3, figsize=(10, 10))
+    for idx, cols in enumerate(df_c.columns):  # For fingers 2, 3, 4, 5
+        if idx <= 3:
+            joint = 2
+        elif idx <= 7:
+            joint = 0
+        else:
+            joint = 1
+
+        if cols.split("P")[-1] == "2":
+            finger = 0
+        elif cols.split("P")[-1] == "3":
+            finger = 1
+        elif cols.split("P")[-1] == "4":
+            finger = 2
+        else:
+            finger = 3
+
+        axs[finger, joint].plot(np.linspace(0, time_New[-1], len(y_pred_new[:, idx])), y_pred_new[:, idx], label="Predicted", linestyle="--")
+        axs[finger,joint].plot(tim,df_c[cols],label="Filtered")
+        axs[finger, joint].set_title(f"Finger {cols}")
+        axs[finger, joint].legend()
+    plt.tight_layout()
+plt.show()
